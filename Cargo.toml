@@ -1,0 +1,21 @@
+[package]
+name = "solana_instruction_count"
+version = "0.1.0"
+authors = ["samkim-crypto <skim13@cs.stanford.edu>"]
+edition = "2018"
+
+[features]
+no-entrypoint = []
+test-bpf = []
+
+[dependencies]
+solana-program = "1.6.7"
+borsh = "0.8"
+borsh-derive = "0.8.1"
+thiserror = "1.0"
+
+[dev-dependencies]
+solana-program-test = "1.6.7"
+solana-sdk = "1.6.7"
+proptest = "0.10"
+
