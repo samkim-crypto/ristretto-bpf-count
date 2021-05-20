@@ -17,10 +17,10 @@ pub fn process_instruction(
 ) -> ProgramResult {
     let instruction = ECInstruction::try_from_slice(input).unwrap();
     match instruction {
-        ECInstruction::U64Add { point1, point2 } => {
+        ECInstruction::U64Add { num1, num2 } => {
             msg!("Adding two u64 integers");
             sol_log_compute_units();
-            let result = point1 + point2;
+            let result = num1 + num2;
             sol_log_compute_units();
             msg!("{}", result);
             Ok(())

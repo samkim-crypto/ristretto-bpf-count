@@ -12,17 +12,17 @@ pub enum ECInstruction {
     ///
     /// No accounts required for this instruction
     U64Add {
-        point1: u64,
-        point2: u64,
+        num1: u64,
+        num2: u64,
     },
 }
 
-/// Create ECAdd instruction
-pub fn ec_add(point1: u64, point2: u64) -> Instruction {
+/// Create U64Add instruction
+pub fn u64_add(num1: u64, num2: u64) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![],
-        data: ECInstruction::U64Add { point1, point2 }
+        data: ECInstruction::U64Add { num1, num2 }
             .try_to_vec()
             .unwrap(),
     }

@@ -18,7 +18,7 @@ async fn test_ec_add() {
     let (mut banks_client, payer, recent_blockhash) = pc.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[instruction::ec_add(1 as u64, 2 as u64)],
+        &[instruction::u64_add(1 as u64, 2 as u64)],
         Some(&payer.pubkey()),
     );
     transaction.sign(&[&payer], recent_blockhash);
