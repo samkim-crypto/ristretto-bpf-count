@@ -1,5 +1,5 @@
 [package]
-name = "solana_instruction_count"
+name = "ec_math"
 version = "0.1.0"
 authors = ["samkim-crypto <skim13@cs.stanford.edu>"]
 edition = "2018"
@@ -19,3 +19,5 @@ solana-program-test = "1.6.7"
 solana-sdk = "1.6.7"
 proptest = "0.10"
 
+[lib]
+crate-type = ["cdylib", "lib"]
