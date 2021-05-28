@@ -1,5 +1,5 @@
 [package]
-name = "solana_instruction_count"
+name = "ec_math"
 version = "0.1.0"
 authors = ["samkim-crypto <skim13@cs.stanford.edu>"]
 edition = "2018"
@@ -13,9 +13,13 @@ solana-program = "1.6.7"
 borsh = "0.8"
 borsh-derive = "0.8.1"
 thiserror = "1.0"
+bigint = "4.4"
+arrayref = "0.3"
 
 [dev-dependencies]
 solana-program-test = "1.6.7"
 solana-sdk = "1.6.7"
 proptest = "0.10"
 
+[lib]
+crate-type = ["cdylib", "lib"]

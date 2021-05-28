@@ -4,7 +4,6 @@ use {
     crate::instruction::ECInstruction,
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, msg,
-        log::sol_log_compute_units,
     },
     borsh::BorshDeserialize,
 };
@@ -17,12 +16,22 @@ pub fn process_instruction(
 ) -> ProgramResult {
     let instruction = ECInstruction::try_from_slice(input).unwrap();
     match instruction {
-        ECInstruction::U64Add { num1, num2 } => {
-            msg!("Adding two u64 integers");
-            sol_log_compute_units();
-            let result = num1 + num2;
-            sol_log_compute_units();
-            msg!("{}", result);
+        ECInstruction::FieldAdd { element1, element2 } => {
+            msg!("Adding two field elements");
+            let result = &element1 + &element2;
+            msg!("{:?}", result);
+            Ok(())
+        }
+        ECInstruction::FieldMul { element1, element2 } => {
+            msg!("Multiplying two field elements");
+            let result = &element1 * &element2;
+            msg!("{:?}", result);
+            Ok(())
+        }
+        ECInstruction::FieldInvSqrt { element } => {
+            msg!("Computing the inverse square root of an element");
+            let result = element.invsqrt();
+            msg!("{:?}", result);
             Ok(())
         }
     }
