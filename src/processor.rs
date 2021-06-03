@@ -34,5 +34,19 @@ pub fn process_instruction(
             msg!("{:?}", result);
             Ok(())
         }
+        ECInstruction::EdwardsDecompress { element } => {
+            msg!("Computing the decompression of a compressed Edwards curve element");
+            let _result = element.decompress().unwrap();
+            msg!("Decompression complete");
+            Ok(())
+        }
+        ECInstruction::EdwardsAdd { element1, element2 } => {
+            msg!("Computing the addition of two Edwards curve elements");
+            let element1_decompressed = element1.decompress().unwrap();
+            let element2_decompressed = element2.decompress().unwrap();
+            let _result = element1_decompressed + element2_decompressed;
+            msg!("Addition complete");
+            Ok(())
+        }
     }
 }

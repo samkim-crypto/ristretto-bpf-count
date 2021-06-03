@@ -1,27 +1,52 @@
 //! Program instructions
 
 use crate::id;
-use crate::field::FieldElement;
 use {
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::instruction::Instruction,
+    crate::field::FieldElement,
+    crate::edwards::CompressedEdwardsY,
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum ECInstruction {
-    /// Calculate the addition of u64 integers
+    /// Calculate the addition of two field elements in
+    /// \\( \mathbb Z / (2\^{255} - 19)\\).
     ///
-    /// No accounts required for this instruction
+    /// No accounts required for this instruction.
     FieldAdd {
         element1: FieldElement,
         element2: FieldElement,
     },
+    /// Calculate the multiplication of two field elements in
+    /// \\( \mathbb Z / (2\^{255} - 19)\\).
+    ///
+    /// No accounts required for this instruction.
     FieldMul {
         element1: FieldElement,
         element2: FieldElement,
     },
+    /// Calculate the inverse square root of a field element in
+    /// \\( \mathbb Z / (2\^{255} - 19)\\).
+    ///
+    /// No accounts required for this instruction.
     FieldInvSqrt {
         element: FieldElement,
+    },
+    /// Calculate the decompression of a compressed Edwards curve
+    /// element.
+    ///
+    /// No accounts required for this instruction.
+    EdwardsDecompress {
+        element: CompressedEdwardsY,
+    },
+    /// Calculate the decompression of a compressed Edwards curve
+    /// element.
+    ///
+    /// No accounts required for this instruction.
+    EdwardsAdd {
+        element1: CompressedEdwardsY,
+        element2: CompressedEdwardsY,
     },
 }
 
@@ -53,6 +78,28 @@ pub fn field_invsqrt(element: FieldElement) -> Instruction {
         program_id: id(),
         accounts:vec![],
         data: ECInstruction::FieldInvSqrt { element }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+/// Create a EdwardsDecompress instruction
+pub fn edwards_decompress(element: CompressedEdwardsY) -> Instruction {
+    Instruction {
+        program_id: id(),
+        accounts:vec![],
+        data: ECInstruction::EdwardsDecompress { element }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+/// Create a EdwardsAdd instruction
+pub fn edwards_add(element1: CompressedEdwardsY, element2: CompressedEdwardsY) -> Instruction {
+    Instruction {
+        program_id: id(),
+        accounts:vec![],
+        data: ECInstruction::EdwardsAdd { element1, element2 }
             .try_to_vec()
             .unwrap(),
     }

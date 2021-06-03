@@ -15,6 +15,9 @@ borsh-derive = "0.8.1"
 thiserror = "1.0"
 bigint = "4.4"
 arrayref = "0.3"
+curve25519-bpf-test = { git = "https://github.com/samkim-crypto/curve25519-bpf-test", branch = "main" }
+byteorder = { version = "^1.2.3", default-features = false, features = ["i128"] }
+digest = { version = "0.9", default-features = false }
 
 [dev-dependencies]
 solana-program-test = "1.6.7"
