@@ -10,7 +10,7 @@ use {
 };
 
 #[tokio::test]
-async fn test_ec_add() {
+async fn test_field_add() {
     let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
 
     // Arbitrary number for now
@@ -27,7 +27,7 @@ async fn test_ec_add() {
 }
 
 #[tokio::test]
-async fn test_ec_mult() {
+async fn test_field_mul() {
     let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
 
     // Arbitrary number for now
@@ -47,7 +47,7 @@ async fn test_ec_mult() {
 }
 
 #[tokio::test]
-async fn test_ec_invsqrt() {
+async fn test_field_invsqrt() {
     let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
 
     // Arbitrary number for now
@@ -57,6 +57,46 @@ async fn test_ec_invsqrt() {
 
     let mut transaction = Transaction::new_with_payer(
         &[instruction::field_invsqrt(FieldElement::one())],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[&payer], recent_blockhash);
+    banks_client.process_transaction(transaction).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_scalar_add() {
+    let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
+
+    // Arbitrary number for now
+    pc.set_bpf_compute_max_units(30_500_000);
+
+    let (mut banks_client, payer, recent_blockhash) = pc.start().await;
+
+    let zero = Scalar::default();
+    let one = Scalar::one();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::scalar_add(zero, one)],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[&payer], recent_blockhash);
+    banks_client.process_transaction(transaction).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_scalar_mul() {
+    let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
+
+    // Arbitrary number for now
+    pc.set_bpf_compute_max_units(30_500_000);
+
+    let (mut banks_client, payer, recent_blockhash) = pc.start().await;
+
+    let zero = Scalar::default();
+    let one = Scalar::one();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::scalar_mul(zero, one)],
         Some(&payer.pubkey()),
     );
     transaction.sign(&[&payer], recent_blockhash);

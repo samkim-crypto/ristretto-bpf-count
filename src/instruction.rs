@@ -34,6 +34,22 @@ pub enum ECInstruction {
     FieldInvSqrt {
         element: FieldElement,
     },
+    /// Calculate the addition of two scalars mod
+    /// \\( \ell = 2\^{252} + 27742317777372353535851937790883648493 \\).
+    ///
+    /// No accounts required for this instruction.
+    ScalarAdd {
+        scalar1: Scalar,
+        scalar2: Scalar,
+    },
+    /// Calculate the multiplication of two scalars mod
+    /// \\( \ell = 2\^{252} + 27742317777372353535851937790883648493 \\).
+    ///
+    /// No accounts required for this instruction.
+    ScalarMul {
+        scalar1: Scalar,
+        scalar2: Scalar,
+    },
     /// Calculate the decompression of a compressed Edwards curve
     /// element.
     ///
@@ -87,6 +103,28 @@ pub fn field_invsqrt(element: FieldElement) -> Instruction {
         program_id: id(),
         accounts:vec![],
         data: ECInstruction::FieldInvSqrt { element }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+/// Create a ScalarAdd instruction
+pub fn scalar_add(scalar1: Scalar, scalar2: Scalar) -> Instruction {
+    Instruction {
+        program_id: id(),
+        accounts: vec![],
+        data: ECInstruction::ScalarAdd { scalar1, scalar2 }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+/// Create a ScalarMul instruction
+pub fn scalar_mul(scalar1: Scalar, scalar2: Scalar) -> Instruction {
+    Instruction {
+        program_id: id(),
+        accounts: vec![],
+        data: ECInstruction::ScalarMul { scalar1, scalar2 }
             .try_to_vec()
             .unwrap(),
     }

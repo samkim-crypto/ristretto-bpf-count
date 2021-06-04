@@ -18,41 +18,53 @@ pub fn process_instruction(
     match instruction {
         ECInstruction::FieldAdd { element1, element2 } => {
             msg!("Adding two field elements");
-            let result = &element1 + &element2;
-            msg!("{:?}", result);
+            let _result = &element1 + &element2;
+            msg!("FieldAdd complete");
             Ok(())
         }
         ECInstruction::FieldMul { element1, element2 } => {
             msg!("Multiplying two field elements");
-            let result = &element1 * &element2;
-            msg!("{:?}", result);
+            let _result = &element1 * &element2;
+            msg!("FieldMul complete");
             Ok(())
         }
         ECInstruction::FieldInvSqrt { element } => {
             msg!("Computing the inverse square root of an element");
-            let result = element.invsqrt();
-            msg!("{:?}", result);
+            let _result = element.invsqrt();
+            msg!("FieldInvSqrt complete");
+            Ok(())
+        }
+        ECInstruction::ScalarAdd { scalar1, scalar2 } => {
+            msg!("Adding two scalar elements");
+            let _result = scalar1 + scalar2;
+            msg!("ScalarAdd complete");
+            Ok(())
+        }
+        ECInstruction::ScalarMul { scalar1, scalar2 } => {
+            msg!("Multiplying two scalar elements");
+            let _result = scalar1 * scalar2;
+            msg!("ScalarMul complete");
             Ok(())
         }
         ECInstruction::EdwardsDecompress { element } => {
-            msg!("Computing the decompression of a compressed Edwards curve element");
+            msg!("Decompressing a compressed Edwards curve element");
             let _result = element.decompress().unwrap();
-            msg!("Decompression complete");
+            msg!("EdwardsDecompress complete");
             Ok(())
         }
         ECInstruction::EdwardsAdd { element1, element2 } => {
-            msg!("Computing the addition of two Edwards curve elements");
+            msg!("Adding two Edwards curve elements");
             let element1_decompressed = element1.decompress().unwrap();
             let element2_decompressed = element2.decompress().unwrap();
             let _result = element1_decompressed + element2_decompressed;
-            msg!("Addition complete");
+            msg!("EdwardsAdd complete");
             Ok(())
         }
         ECInstruction::EdwardsMul { element, scalar } => {
-            msg!("Computing the multiplication of an Edwards curve element with a scalar");
+            msg!("Multiplying an Edwards curve element with a scalar");
             let element_decompressed = element.decompress().unwrap();
             let _result = element_decompressed * scalar;
-            msg!("Multiplication complete");
+            msg!("EdwardsMul complete");
             Ok(())
         }
     }
