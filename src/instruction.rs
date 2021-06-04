@@ -6,6 +6,7 @@ use {
     solana_program::instruction::Instruction,
     crate::field::FieldElement,
     crate::edwards::CompressedEdwardsY,
+    crate::scalar::Scalar,
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
@@ -47,6 +48,14 @@ pub enum ECInstruction {
     EdwardsAdd {
         element1: CompressedEdwardsY,
         element2: CompressedEdwardsY,
+    },
+    /// Calculate the multiplication of an Edwards curve element
+    /// and a scalar.
+    ///
+    /// No accounts required for this instruction.
+    EdwardsMul {
+        element: CompressedEdwardsY,
+        scalar: Scalar,
     },
 }
 
@@ -100,6 +109,17 @@ pub fn edwards_add(element1: CompressedEdwardsY, element2: CompressedEdwardsY) -
         program_id: id(),
         accounts:vec![],
         data: ECInstruction::EdwardsAdd { element1, element2 }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+/// Create a EdwardsMul instruction
+pub fn edwards_mul(element: CompressedEdwardsY, scalar: Scalar) -> Instruction {
+    Instruction {
+        program_id: id(),
+        accounts:vec![],
+        data: ECInstruction::EdwardsMul { element, scalar }
             .try_to_vec()
             .unwrap(),
     }

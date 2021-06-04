@@ -1,6 +1,37 @@
+
+use core::cmp::{Eq, PartialEq};
+
+use subtle::ConditionallySelectable;
+use subtle::ConditionallyNegatable;
+use subtle::Choice;
+use subtle::ConstantTimeEq;
+
 use crate::backend::constants;
 
+pub use crate::backend::field::*;
+/// A `FieldElement` represents an element of the field
+/// \\( \mathbb Z / (2\^{255} - 19)\\).
+///
+/// The `FieldElement` type is an alias for one of the platform-specific
+/// implementations.
 pub type FieldElement = crate::backend::field::FieldElement51;
+
+impl Eq for FieldElement {}
+
+impl PartialEq for FieldElement {
+    fn eq(&self, other: &FieldElement) -> bool {
+        self.ct_eq(other).unwrap_u8() == 1u8
+    }
+}
+
+impl ConstantTimeEq for FieldElement {
+    /// Test equality between two `FieldElement`s.  Since the
+    /// internal representation is not canonical, the field elements
+    /// are normalized to wire format before comparison.
+    fn ct_eq(&self, other: &FieldElement) -> Choice {
+        self.to_bytes().ct_eq(&other.to_bytes())
+    }
+}
 
 impl FieldElement {
     /// Determine if this `FieldElement` is negative, in the sense
@@ -10,18 +41,26 @@ impl FieldElement {
     /// # Return
     ///
     /// If negative, return `Choice(1)`.  Otherwise, return `Choice(0)`.
-    pub fn is_negative(&self) -> bool {
+    pub fn is_negative(&self) -> Choice {
         let bytes = self.to_bytes();
-        bytes[0] & 1 == 1
+        (bytes[0] & 1).into()
     }
 
     /// Determine if this `FieldElement` is zero.
-    pub fn is_zero(&self) -> bool {
-        self.to_bytes() == [0u8; 32]
+    ///
+    /// # Return
+    ///
+    /// If zero, return `Choice(1)`.  Otherwise, return `Choice(0)`.
+    pub fn is_zero(&self) -> Choice {
+        let zero = [0u8; 32];
+        let bytes = self.to_bytes();
+
+        bytes.ct_eq(&zero)
     }
 
     /// Compute (self^(2^250-1), self^11), used as a helper function
     /// within invert() and pow22523().
+    #[inline(never)]
     fn pow22501(&self) -> (FieldElement, FieldElement) {
         // Instead of managing which temporary variables are used
         // for what, we define as many as we need and leave stack
@@ -80,7 +119,7 @@ impl FieldElement {
             acc = &acc * input;
         }
 
-        // acc is nonzero iff all inputs are nonzero
+	// acc is nonzero iff all inputs are nonzero
         assert_eq!(acc.is_zero().unwrap_u8(), 0);
 
         // Compute the inverse of all products
@@ -101,6 +140,7 @@ impl FieldElement {
     /// x^(p-2)x = x^(p-1) = 1 (mod p).
     ///
     /// This function returns zero on input zero.
+    #[inline(never)]
     pub fn invert(&self) -> FieldElement {
         // The bits of p-2 = 2^255 -19 -2 are 11010111111...11.
         //
@@ -113,6 +153,7 @@ impl FieldElement {
     }
 
     /// Raise this field element to the power (p-5)/8 = 2^252 -3.
+    #[inline(never)]
     fn pow_p58(&self) -> FieldElement {
         // The bits of (p-5)/8 are 101111.....11.
         //
@@ -125,18 +166,19 @@ impl FieldElement {
     }
 
     /// Given `FieldElements` `u` and `v`, compute either `sqrt(u/v)`
-    /// or `sqrt(i*u/v)`.
+    /// or `sqrt(i*u/v)` in constant time.
     ///
     /// This function always returns the nonnegative square root.
     ///
     /// # Return
     ///
-    /// - `(true, +sqrt(u/v))  ` if `v` is nonzero and `u/v` is square;
-    /// - `(true, zero)        ` if `u` is zero;
-    /// - `(false, zero)        ` if `v` is zero and `u` is nonzero;
-    /// - `(false, +sqrt(i*u/v))` if `u/v` is nonsquare (so `i*u/v` is square).
+    /// - `(Choice(1), +sqrt(u/v))  ` if `v` is nonzero and `u/v` is square;
+    /// - `(Choice(1), zero)        ` if `u` is zero;
+    /// - `(Choice(0), zero)        ` if `v` is zero and `u` is nonzero;
+    /// - `(Choice(0), +sqrt(i*u/v))` if `u/v` is nonsquare (so `i*u/v` is square).
     ///
-    pub fn sqrt_ratio_i(u: &FieldElement, v: &FieldElement) -> (bool, FieldElement) {
+    #[inline(never)]
+    pub fn sqrt_ratio_i(u: &FieldElement, v: &FieldElement) -> (Choice, FieldElement) {
         // Using the same trick as in ed25519 decoding, we merge the
         // inversion, the square root, and the square test as follows.
         //
@@ -168,27 +210,23 @@ impl FieldElement {
 
         let i = &constants::SQRT_M1;
 
-        let correct_sign_sqrt = check == *u;
-        let flipped_sign_sqrt = check == -u;
-        let flipped_sign_sqrt_i = check == &(-u)*i;
+        let correct_sign_sqrt   = check.ct_eq(        u);
+        let flipped_sign_sqrt   = check.ct_eq(     &(-u));
+        let flipped_sign_sqrt_i = check.ct_eq(&(&(-u)*i));
 
         let r_prime = &constants::SQRT_M1 * &r;
-
-        if flipped_sign_sqrt | flipped_sign_sqrt_i {
-            r = r_prime;
-        }
+        r.conditional_assign(&r_prime, flipped_sign_sqrt | flipped_sign_sqrt_i);
 
         // Choose the nonnegative square root.
-        if r.is_negative() {
-            r.negate();
-        }
+        let r_is_negative = r.is_negative();
+        r.conditional_negate(r_is_negative);
 
         let was_nonzero_square = correct_sign_sqrt | flipped_sign_sqrt;
 
         (was_nonzero_square, r)
     }
 
-    /// Attempt to compute `sqrt(1/self)`.
+    /// Attempt to compute `sqrt(1/self)` in constant time.
     ///
     /// Convenience wrapper around `sqrt_ratio_i`.
     ///
@@ -200,7 +238,9 @@ impl FieldElement {
     /// - `(Choice(0), zero)           ` if `self` is zero;
     /// - `(Choice(0), +sqrt(i/self))  ` if `self` is a nonzero nonsquare;
     ///
-    pub fn invsqrt(&self) -> (bool, FieldElement) {
+    #[inline(never)]
+    pub fn invsqrt(&self) -> (Choice, FieldElement) {
         FieldElement::sqrt_ratio_i(&FieldElement::one(), self)
     }
 }
+

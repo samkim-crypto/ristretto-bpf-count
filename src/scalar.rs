@@ -127,25 +127,35 @@
 //! **except for the highest bit, which will be set to 0**.
 
 use core::borrow::Borrow;
+use core::cmp::{Eq, PartialEq};
 use core::fmt::Debug;
-use core::ops::Index;
 use core::iter::{Product, Sum};
-
-use digest::generic_array::typenum::U64;
-use digest::Digest;
-
+use core::ops::Index;
 use core::ops::Neg;
 use core::ops::{Add, AddAssign};
 use core::ops::{Mul, MulAssign};
 use core::ops::{Sub, SubAssign};
 
+use digest::generic_array::typenum::U64;
+use digest::Digest;
+
+use subtle::Choice;
+use subtle::ConditionallySelectable;
+use subtle::ConstantTimeEq;
+
+use zeroize::Zeroize;
+
+use crate::backend;
 use crate::backend::constants;
 
-type UnpackedScalar = crate::backend::scalar::Scalar52;
+use borsh::BorshDeserialize;
+use borsh::BorshSerialize;
+
+type UnpackedScalar = backend::scalar::Scalar52;
 
 /// The `Scalar` struct holds an integer \\(s < 2\^{255} \\) which
 /// represents an element of \\(\mathbb Z / \ell\\).
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, BorshSerialize, BorshDeserialize)]
 pub struct Scalar {
     /// `bytes` is a little-endian byte encoding of an integer representing a scalar modulo the
     /// group order.
@@ -218,6 +228,19 @@ impl Scalar {
 impl Debug for Scalar {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "Scalar{{\n\tbytes: {:?},\n}}", &self.bytes)
+    }
+}
+
+impl Eq for Scalar {}
+impl PartialEq for Scalar {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).unwrap_u8() == 1u8
+    }
+}
+
+impl ConstantTimeEq for Scalar {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.bytes.ct_eq(&other.bytes)
     }
 }
 
@@ -317,6 +340,16 @@ impl<'a> Neg for Scalar {
     }
 }
 
+impl ConditionallySelectable for Scalar {
+    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
+        let mut bytes = [0u8; 32];
+        for i in 0..32 {
+            bytes[i] = u8::conditional_select(&a.bytes[i], &b.bytes[i], choice);
+        }
+        Scalar { bytes }
+    }
+}
+
 impl<T> Product<T> for Scalar
 where
     T: Borrow<Scalar>
@@ -409,6 +442,12 @@ impl From<u128> for Scalar {
         let mut s_bytes = [0u8; 32];
         LittleEndian::write_u128(&mut s_bytes, x);
         Scalar{ bytes: s_bytes }
+    }
+}
+
+impl Zeroize for Scalar {
+    fn zeroize(&mut self) {
+        self.bytes.zeroize();
     }
 }
 
@@ -570,6 +609,97 @@ impl Scalar {
     /// ```
     pub fn invert(&self) -> Scalar {
         self.unpack().invert().pack()
+    }
+
+    /// Given a slice of nonzero (possibly secret) `Scalar`s,
+    /// compute their inverses in a batch.
+    ///
+    /// # Return
+    ///
+    /// Each element of `inputs` is replaced by its inverse.
+    ///
+    /// The product of all inverses is returned.
+    ///
+    /// # Warning
+    ///
+    /// All input `Scalars` **MUST** be nonzero.  If you cannot
+    /// *prove* that this is the case, you **SHOULD NOT USE THIS
+    /// FUNCTION**.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # extern crate curve25519_dalek;
+    /// # use curve25519_dalek::scalar::Scalar;
+    /// # fn main() {
+    /// let mut scalars = [
+    ///     Scalar::from(3u64),
+    ///     Scalar::from(5u64),
+    ///     Scalar::from(7u64),
+    ///     Scalar::from(11u64),
+    /// ];
+    ///
+    /// let allinv = Scalar::batch_invert(&mut scalars);
+    ///
+    /// assert_eq!(allinv, Scalar::from(3*5*7*11u64).invert());
+    /// assert_eq!(scalars[0], Scalar::from(3u64).invert());
+    /// assert_eq!(scalars[1], Scalar::from(5u64).invert());
+    /// assert_eq!(scalars[2], Scalar::from(7u64).invert());
+    /// assert_eq!(scalars[3], Scalar::from(11u64).invert());
+    /// # }
+    /// ```
+    #[cfg(feature = "alloc")]
+    pub fn batch_invert(inputs: &mut [Scalar]) -> Scalar {
+        // This code is essentially identical to the FieldElement
+        // implementation, and is documented there.  Unfortunately,
+        // it's not easy to write it generically, since here we want
+        // to use `UnpackedScalar`s internally, and `Scalar`s
+        // externally, but there's no corresponding distinction for
+        // field elements.
+
+        use zeroize::Zeroizing;
+
+        let n = inputs.len();
+        let one: UnpackedScalar = Scalar::one().unpack().to_montgomery();
+
+        // Place scratch storage in a Zeroizing wrapper to wipe it when
+        // we pass out of scope.
+        let scratch_vec = vec![one; n];
+        let mut scratch = Zeroizing::new(scratch_vec);
+
+        // Keep an accumulator of all of the previous products
+        let mut acc = Scalar::one().unpack().to_montgomery();
+
+        // Pass through the input vector, recording the previous
+        // products in the scratch space
+        for (input, scratch) in inputs.iter_mut().zip(scratch.iter_mut()) {
+            *scratch = acc;
+
+            // Avoid unnecessary Montgomery multiplication in second pass by
+            // keeping inputs in Montgomery form
+            let tmp = input.unpack().to_montgomery();
+            *input = tmp.pack();
+            acc = UnpackedScalar::montgomery_mul(&acc, &tmp);
+        }
+
+        // acc is nonzero iff all inputs are nonzero
+        debug_assert!(acc.pack() != Scalar::zero());
+
+        // Compute the inverse of all products
+        acc = acc.montgomery_invert().from_montgomery();
+
+        // We need to return the product of all inverses later
+        let ret = acc.pack();
+
+        // Pass through the vector backwards to compute the inverses
+        // in place
+        for (input, scratch) in inputs.iter_mut().rev().zip(scratch.iter().rev()) {
+            let tmp = UnpackedScalar::montgomery_mul(&acc, &input.unpack());
+            *input = UnpackedScalar::montgomery_mul(&acc, &scratch).pack();
+            acc = tmp;
+        }
+
+        ret
     }
 
     /// Get the bits of the scalar.
@@ -949,3 +1079,4 @@ impl UnpackedScalar {
         self.to_montgomery().montgomery_invert().from_montgomery()
     }
 }
+

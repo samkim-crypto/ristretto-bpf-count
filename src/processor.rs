@@ -48,5 +48,12 @@ pub fn process_instruction(
             msg!("Addition complete");
             Ok(())
         }
+        ECInstruction::EdwardsMul { element, scalar } => {
+            msg!("Computing the multiplication of an Edwards curve element with a scalar");
+            let element_decompressed = element.decompress().unwrap();
+            let _result = element_decompressed * scalar;
+            msg!("Multiplication complete");
+            Ok(())
+        }
     }
 }

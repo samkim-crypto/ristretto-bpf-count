@@ -678,7 +678,9 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
+ "subtle 2.4.0",
  "thiserror",
+ "zeroize",
 ]
 
 [[package]]

@@ -7,7 +7,12 @@ use core::ops::{Add, AddAssign};
 use core::ops::{Mul, MulAssign};
 use core::ops::{Sub, SubAssign};
 
+use subtle::Choice;
+use subtle::ConditionallySelectable;
+
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use zeroize::Zeroize;
 
 /// A `FieldElement51` represents an element of the field
 /// \\( \mathbb Z / (2\^{255} - 19)\\).
@@ -15,12 +20,18 @@ use borsh::{BorshDeserialize, BorshSerialize};
 /// In the 64-bit implementation, a `FieldElement51` is represented in
 /// radix \\(2\^{51}\\) as five `u64`s; the coefficients are allowed to
 /// grow up to \\(2\^{54}\\) between reductions modulo \\(p\\).
-#[derive(Copy, Clone, Eq, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct FieldElement51(pub [u64; 5]);
+#[derive(Copy, Clone, BorshDeserialize, BorshSerialize)]
+pub struct FieldElement51(pub (crate) [u64; 5]);
 
 impl Debug for FieldElement51 {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "FieldElement51({:?})", &self.0[..])
+    }
+}
+
+impl Zeroize for FieldElement51 {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
     }
 }
 
@@ -79,11 +90,11 @@ impl<'b> MulAssign<&'b FieldElement51> for FieldElement51 {
 
 impl<'a, 'b> Mul<&'b FieldElement51> for &'a FieldElement51 {
     type Output = FieldElement51;
+
     #[inline(never)]
     fn mul(self, _rhs: &'b FieldElement51) -> FieldElement51 {
         /// Helper function to multiply two 64-bit integers with 128
         /// bits of output.
-        // #[inline(always)]
         fn m(x: u64, y: u64) -> u128 { (x as u128) * (y as u128) }
 
         // Alias self, _rhs for more readable formulas
@@ -190,6 +201,38 @@ impl<'a> Neg for &'a FieldElement51 {
     }
 }
 
+impl ConditionallySelectable for FieldElement51 {
+    fn conditional_select(
+        a: &FieldElement51,
+        b: &FieldElement51,
+        choice: Choice,
+    ) -> FieldElement51 {
+        FieldElement51([
+            u64::conditional_select(&a.0[0], &b.0[0], choice),
+            u64::conditional_select(&a.0[1], &b.0[1], choice),
+            u64::conditional_select(&a.0[2], &b.0[2], choice),
+            u64::conditional_select(&a.0[3], &b.0[3], choice),
+            u64::conditional_select(&a.0[4], &b.0[4], choice),
+        ])
+    }
+
+    fn conditional_swap(a: &mut FieldElement51, b: &mut FieldElement51, choice: Choice) {
+        u64::conditional_swap(&mut a.0[0], &mut b.0[0], choice);
+        u64::conditional_swap(&mut a.0[1], &mut b.0[1], choice);
+        u64::conditional_swap(&mut a.0[2], &mut b.0[2], choice);
+        u64::conditional_swap(&mut a.0[3], &mut b.0[3], choice);
+        u64::conditional_swap(&mut a.0[4], &mut b.0[4], choice);
+    }
+
+    fn conditional_assign(&mut self, other: &FieldElement51, choice: Choice) {
+        self.0[0].conditional_assign(&other.0[0], choice);
+        self.0[1].conditional_assign(&other.0[1], choice);
+        self.0[2].conditional_assign(&other.0[2], choice);
+        self.0[3].conditional_assign(&other.0[3], choice);
+        self.0[4].conditional_assign(&other.0[4], choice);
+    }
+}
+
 impl FieldElement51 {
     /// Invert the sign of this field element
     pub fn negate(&mut self) {
@@ -220,7 +263,7 @@ impl FieldElement51 {
     }
 
     /// Given 64-bit input limbs, reduce to enforce the bound 2^(51 + epsilon).
-    #[inline(always)]
+    #[inline(never)]
     fn reduce(mut limbs: [u64; 5]) -> FieldElement51 {
         const LOW_51_BIT_MASK: u64 = (1u64 << 51) - 1;
 
@@ -387,7 +430,7 @@ impl FieldElement51 {
         debug_assert!( k > 0 );
 
         /// Multiply two 64-bit integers with 128 bits of output.
-        #[inline(always)]
+        #[inline(never)]
         fn m(x: u64, y: u64) -> u128 { (x as u128) * (y as u128) }
 
         let mut a: [u64; 5] = self.0;
@@ -502,5 +545,3 @@ impl FieldElement51 {
         square
     }
 }
-
-

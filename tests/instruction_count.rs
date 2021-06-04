@@ -5,7 +5,7 @@ use {
     solana_program_test::*,
     solana_sdk::{signature::Signer, transaction::Transaction},
     ec_math::{id, instruction, processor::process_instruction, field::FieldElement,
-              edwards::CompressedEdwardsY},
+              edwards::CompressedEdwardsY, scalar::Scalar},
     // curve25519_bpf_test::field::FieldElement,
 };
 
@@ -97,4 +97,19 @@ async fn test_edwards_add() {
     banks_client.process_transaction(transaction).await.unwrap();
 }
 
+#[tokio::test]
+async fn test_edwards_mul() {
+    let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
 
+    // Arbitrary number for now
+    pc.set_bpf_compute_max_units(30_500_000);
+
+    let (mut banks_client, payer, recent_blockhash) = pc.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::edwards_mul(CompressedEdwardsY::default(), Scalar::one())],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[&payer], recent_blockhash);
+    banks_client.process_transaction(transaction).await.unwrap();
+}
