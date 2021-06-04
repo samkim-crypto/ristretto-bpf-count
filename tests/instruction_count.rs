@@ -153,3 +153,24 @@ async fn test_edwards_mul() {
     transaction.sign(&[&payer], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 }
+
+#[tokio::test]
+async fn test_edwards_multiscalar_mul() {
+    let mut pc = ProgramTest::new("ec_math", id(), processor!(process_instruction));
+
+    // Arbitrary number for now
+    pc.set_bpf_compute_max_units(30_500_000);
+
+    let (mut banks_client, payer, recent_blockhash) = pc.start().await;
+
+    let scalars = [Scalar::one(); 8];
+    let points = [CompressedEdwardsY::default(); 8];
+
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::edwards_multiscalar_mul(points, scalars)],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[&payer], recent_blockhash);
+    banks_client.process_transaction(transaction).await.unwrap();
+}
+

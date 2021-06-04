@@ -1,5 +1,8 @@
 //! Program state processor
 
+use crate::edwards::EdwardsPoint;
+use crate::traits::MultiscalarMul;
+
 use {
     crate::instruction::ECInstruction,
     solana_program::{
@@ -65,6 +68,18 @@ pub fn process_instruction(
             let element_decompressed = element.decompress().unwrap();
             let _result = element_decompressed * scalar;
             msg!("EdwardsMul complete");
+            Ok(())
+        }
+        ECInstruction::EdwardsMultiScalarMul { elements, scalars } => {
+            msg!("Multiplying an Edwards curve element with a scalar");
+            let elements_iter = elements
+                .iter().
+                map(|elem| elem.decompress().unwrap());
+            let scalars_iter = scalars.iter();
+
+            EdwardsPoint::multiscalar_mul(scalars_iter, elements_iter);
+
+            msg!("EdwardsMultiScalarMul complete");
             Ok(())
         }
     }

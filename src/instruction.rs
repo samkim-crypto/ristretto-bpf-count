@@ -11,7 +11,7 @@ use {
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum ECInstruction {
-    /// Calculate the addition of two field elements in
+    /// Calculate a addition of two field elements in
     /// \\( \mathbb Z / (2\^{255} - 19)\\).
     ///
     /// No accounts required for this instruction.
@@ -19,7 +19,7 @@ pub enum ECInstruction {
         element1: FieldElement,
         element2: FieldElement,
     },
-    /// Calculate the multiplication of two field elements in
+    /// Calculate a multiplication of two field elements in
     /// \\( \mathbb Z / (2\^{255} - 19)\\).
     ///
     /// No accounts required for this instruction.
@@ -27,14 +27,14 @@ pub enum ECInstruction {
         element1: FieldElement,
         element2: FieldElement,
     },
-    /// Calculate the inverse square root of a field element in
+    /// Calculate a inverse square root of a field element in
     /// \\( \mathbb Z / (2\^{255} - 19)\\).
     ///
     /// No accounts required for this instruction.
     FieldInvSqrt {
         element: FieldElement,
     },
-    /// Calculate the addition of two scalars mod
+    /// Calculate a addition of two scalars mod
     /// \\( \ell = 2\^{252} + 27742317777372353535851937790883648493 \\).
     ///
     /// No accounts required for this instruction.
@@ -42,7 +42,7 @@ pub enum ECInstruction {
         scalar1: Scalar,
         scalar2: Scalar,
     },
-    /// Calculate the multiplication of two scalars mod
+    /// Calculate a multiplication of two scalars mod
     /// \\( \ell = 2\^{252} + 27742317777372353535851937790883648493 \\).
     ///
     /// No accounts required for this instruction.
@@ -50,14 +50,14 @@ pub enum ECInstruction {
         scalar1: Scalar,
         scalar2: Scalar,
     },
-    /// Calculate the decompression of a compressed Edwards curve
+    /// Calculate a decompression of a compressed Edwards curve
     /// element.
     ///
     /// No accounts required for this instruction.
     EdwardsDecompress {
         element: CompressedEdwardsY,
     },
-    /// Calculate the decompression of a compressed Edwards curve
+    /// Calculate a decompression of a compressed Edwards curve
     /// element.
     ///
     /// No accounts required for this instruction.
@@ -65,7 +65,7 @@ pub enum ECInstruction {
         element1: CompressedEdwardsY,
         element2: CompressedEdwardsY,
     },
-    /// Calculate the multiplication of an Edwards curve element
+    /// Calculate a multiplication of an Edwards curve element
     /// and a scalar.
     ///
     /// No accounts required for this instruction.
@@ -73,6 +73,16 @@ pub enum ECInstruction {
         element: CompressedEdwardsY,
         scalar: Scalar,
     },
+    /// Calculate a batched multiplication of a sequence of 8 scalars
+    /// and Edwards curve elements.
+    ///
+    /// No accounts required for this instruction.
+    /// - I am running out of stack for 16 or higher batched multiplications
+    EdwardsMultiScalarMul {
+        elements: [CompressedEdwardsY; 8],
+        scalars: [Scalar; 8],
+    },
+
 }
 
 /// Create a FieldAdd instruction
@@ -158,6 +168,18 @@ pub fn edwards_mul(element: CompressedEdwardsY, scalar: Scalar) -> Instruction {
         program_id: id(),
         accounts:vec![],
         data: ECInstruction::EdwardsMul { element, scalar }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+/// Create a EdwardsMultiScalarMul instruction
+pub fn edwards_multiscalar_mul(elements: [CompressedEdwardsY; 8], scalars: [Scalar; 8]) 
+-> Instruction {
+    Instruction {
+        program_id: id(),
+        accounts:vec![],
+        data: ECInstruction::EdwardsMultiScalarMul { elements, scalars }
             .try_to_vec()
             .unwrap(),
     }

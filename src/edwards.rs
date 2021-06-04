@@ -110,11 +110,11 @@ use crate::backend::curve_models::ProjectiveNielsPoint;
 use crate::backend::curve_models::ProjectivePoint;
 
 use crate::window::LookupTable;
-use crate::window::LookupTableRadix16;
-use crate::window::LookupTableRadix32;
-use crate::window::LookupTableRadix64;
-use crate::window::LookupTableRadix128;
-use crate::window::LookupTableRadix256;
+// use crate::window::LookupTableRadix16;
+// use crate::window::LookupTableRadix32;
+// use crate::window::LookupTableRadix64;
+// use crate::window::LookupTableRadix128;
+// use crate::window::LookupTableRadix256;
 
 // use crate::traits::BasepointTable;
 use crate::traits::ValidityCheck;
@@ -123,8 +123,10 @@ use crate::traits::{Identity, IsIdentity};
 use borsh::BorshSerialize;
 use borsh::BorshDeserialize;
 
-// use traits::MultiscalarMul;
-// use traits::{VartimeMultiscalarMul, VartimePrecomputedMultiscalarMul};
+use crate::traits::MultiscalarMul;
+use crate::traits::{VartimeMultiscalarMul, VartimePrecomputedMultiscalarMul};
+
+use crate::backend::straus;
 
 // use backend::serial::scalar_mul;
 
@@ -512,7 +514,6 @@ impl<'a, 'b> Mul<&'b EdwardsPoint> for &'a Scalar {
 // These use the iterator's size hint and the target settings to
 // forward to a specific backend implementation.
 
-#[cfg(feature = "alloc")]
 impl MultiscalarMul for EdwardsPoint {
     type Point = EdwardsPoint;
 
@@ -540,11 +541,10 @@ impl MultiscalarMul for EdwardsPoint {
         // size-dependent algorithm dispatch, use this as the hint.
         let _size = s_lo;
 
-        scalar_mul::straus::Straus::multiscalar_mul(scalars, points)
+        straus::Straus::multiscalar_mul(scalars, points)
     }
 }
 
-#[cfg(feature = "alloc")]
 impl VartimeMultiscalarMul for EdwardsPoint {
     type Point = EdwardsPoint;
 
@@ -569,13 +569,14 @@ impl VartimeMultiscalarMul for EdwardsPoint {
 
         // Now we know there's a single size.
         // Use this as the hint to decide which algorithm to use.
-        let size = s_lo;
+        // let size = s_lo;
 
-        if size < 190 {
-            scalar_mul::straus::Straus::optional_multiscalar_mul(scalars, points)
-        } else {
-            scalar_mul::pippenger::Pippenger::optional_multiscalar_mul(scalars, points)
-        }
+        // if size < 190 {
+        //     scalar_mul::straus::Straus::optional_multiscalar_mul(scalars, points)
+        // } else {
+        //     scalar_mul::pippenger::Pippenger::optional_multiscalar_mul(scalars, points)
+        // }
+        straus::Straus::optional_multiscalar_mul(scalars, points)
     }
 }
 
